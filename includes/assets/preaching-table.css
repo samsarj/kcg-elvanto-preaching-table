@@ -1,0 +1,39 @@
+/**
+ * Preaching Table Styles
+ * Styles for the KCG Elvanto Preaching Table plugin
+ */
+
+.kcg-preaching-table-wrapper {
+    padding: 0 !important;
+    overflow: hidden;
+}
+
+.kcg-preaching-table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #fff;
+}
+
+.kcg-preaching-table thead {
+    background-color: var(--wp--preset--color--primary);
+}
+
+.kcg-preaching-table thead th {
+    padding: 8px;
+    font-weight: 600;
+    text-align: left;
+}
+
+.kcg-preaching-table thead th h5 {
+    color: var(--wp--preset--color--base);
+    margin: 0;
+}
+
+.kcg-preaching-table td {
+    padding: 8px;
+    vertical-align: middle;
+}
+
+.kcg-preaching-table tbody tr.even-row {
+    background-color: var(--wp--preset--color--base);
+}

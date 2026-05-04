@@ -16,7 +16,7 @@ class KCG_Elvanto_Preaching_Admin {
      * Initialize admin functionality
      */
     public function __construct() {
-        add_action('admin_menu', array($this, 'add_admin_page'));
+        add_action('admin_menu', array($this, 'add_admin_page'), 20);
         add_action('admin_init', array($this, 'handle_refresh'));
     }
 
@@ -25,9 +25,9 @@ class KCG_Elvanto_Preaching_Admin {
      */
     public function add_admin_page() {
         add_submenu_page(
-            'options-general.php',
-            'Elvanto Preaching Table Refresh',
+            'kcg-elvanto-api',
             'Elvanto Preaching Table',
+            'Preaching Table',
             'manage_options',
             'kcg-preaching-table-refresh',
             array($this, 'admin_page')
@@ -54,11 +54,11 @@ class KCG_Elvanto_Preaching_Admin {
             $data = KCG_Elvanto_Fetcher::fetch_data();
             
             if (!empty($data['services'])) {
-                update_option('kcg_elvanto_services', $data['services']);
+                set_transient('kcg_elvanto_services', $data['services'], 12 * HOUR_IN_SECONDS);
             }
             
             if (!empty($data['preachers'])) {
-                update_option('kcg_elvanto_preachers', $data['preachers']);
+                set_transient('kcg_elvanto_preachers', $data['preachers'], 12 * HOUR_IN_SECONDS);
             }
             
             // Store raw API response for debugging
@@ -66,11 +66,8 @@ class KCG_Elvanto_Preaching_Admin {
                 update_option('kcg_preaching_table_last_response', $data['raw_response']);
             }
             
-            update_option('kcg_preaching_table_last_refresh', current_time('mysql'));
-            update_option('kcg_preaching_table_last_refresh_status', 'success');
-            
             wp_safe_remote_post(
-                add_query_arg('kcg_preaching_refresh_success', '1', admin_url('options-general.php?page=kcg-preaching-table-refresh'))
+                add_query_arg('kcg_preaching_refresh_success', '1', admin_url('admin.php?page=kcg-preaching-table-refresh'))
             );
         }
     }
@@ -82,8 +79,8 @@ class KCG_Elvanto_Preaching_Admin {
         $last_refresh = get_option('kcg_preaching_table_last_refresh');
         $last_response = get_option('kcg_preaching_table_last_response');
         $refresh_status = get_option('kcg_preaching_table_last_refresh_status');
-        $services = get_option('kcg_elvanto_services', array());
-        $preachers = get_option('kcg_elvanto_preachers', array());
+        $services = KCG_Elvanto_Fetcher::get_services();
+        $preachers = KCG_Elvanto_Fetcher::get_preachers();
         $services_count = count($services);
         $preachers_count = count($preachers);
         ?>

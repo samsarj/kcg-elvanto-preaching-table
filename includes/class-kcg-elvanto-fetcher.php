@@ -18,57 +18,45 @@ class KCG_Elvanto_Fetcher {
      * @return array Array with 'services' and 'preachers' keys
      */
     public static function fetch_data() {
-        // Get API key from the provider
-        if (!class_exists('KCG_Elvanto_API_Registry')) {
-            error_log('KCG_Elvanto_API_Registry not available');
+        // Do not fetch directly if the API provider is unavailable.
+        if (!class_exists('KCG_Elvanto_API_Registry') || !class_exists('KCG_Elvanto_API_Client')) {
+            error_log('KCG_Elvanto_API_Registry or API client not available');
+            self::set_last_refresh_status('failed');
             return array('services' => array(), 'preachers' => array());
         }
-        
-        $api_key = KCG_Elvanto_API_Registry::get_api_key();
-        if (!$api_key) {
-            error_log('No Elvanto API key configured');
-            return array('services' => array(), 'preachers' => array());
-        }
-        
+
         $start_date = date('Y-m-d');
         $end_date = date('Y-m-d', strtotime('+1 year'));
-        
-        $url = 'https://api.elvanto.com/v1/services/getAll.json';
-        
-        // Single API call with both volunteers and series_name fields
-        $response = wp_remote_post($url, array(
-            'headers' => array(
-                'Content-Type' => 'application/json',
-                'Authorization' => 'Basic ' . base64_encode($api_key . ':x')
-            ),
-            'body' => json_encode(array(
-                'start' => $start_date,
-                'end' => $end_date,
-                'fields' => array('series_name', 'volunteers')
-            )),
-            'timeout' => 30
-        ));
-        
-        if (is_wp_error($response)) {
-            error_log('Services fetch error: ' . $response->get_error_message());
-            return array('services' => array(), 'preachers' => array());
+        $debug_info = array();
+
+        $raw_services = KCG_Elvanto_API_Client::fetch_services(
+            $start_date,
+            $end_date,
+            array('series_name', 'volunteers'),
+            $debug_info
+        );
+
+        if (is_wp_error($raw_services)) {
+            $debug_info['error'] = $raw_services->get_error_message();
+            self::set_last_refresh_status('failed');
+            return array(
+                'services' => array(),
+                'preachers' => array(),
+                'raw_response' => wp_json_encode($debug_info, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
+            );
         }
-        
-        $response_code = wp_remote_retrieve_response_code($response);
-        $body = wp_remote_retrieve_body($response);
-        $data = json_decode($body, true);
-        
-        if (isset($data['error'])) {
-            error_log('Services API error: ' . json_encode($data['error']));
-            return array('services' => array(), 'preachers' => array());
+
+        if (!is_array($raw_services)) {
+            $raw_services = array();
         }
-        
-        // Extract services from the pagination wrapper
-        $raw_services = array();
-        if (isset($data['services']['service']) && is_array($data['services']['service'])) {
-            $raw_services = $data['services']['service'];
-        } elseif (isset($data['services']) && is_array($data['services']) && !isset($data['services']['service'])) {
-            $raw_services = $data['services'];
+
+        if (empty($raw_services) && isset($debug_info['error'])) {
+            self::set_last_refresh_status('failed');
+            return array(
+                'services' => array(),
+                'preachers' => array(),
+                'raw_response' => wp_json_encode($debug_info, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
+            );
         }
         
         // Process the raw services to extract both service data and preachers
@@ -113,17 +101,28 @@ class KCG_Elvanto_Fetcher {
             }
         }
         
-        // Store both in options
-        update_option('kcg_elvanto_services', $services);
-        update_option('kcg_elvanto_preachers', $preachers);
+        // Store both in transients so the options table remains small.
+        set_transient('kcg_elvanto_services', $services, 12 * HOUR_IN_SECONDS);
+        set_transient('kcg_elvanto_preachers', $preachers, 12 * HOUR_IN_SECONDS);
+        self::set_last_refresh_status('success');
         
         error_log('Stored ' . count($services) . ' services and ' . count($preachers) . ' preachers');
         
         return array(
             'services' => $services,
             'preachers' => $preachers,
-            'raw_response' => wp_json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
+            'raw_response' => wp_json_encode($debug_info, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
         );
+    }
+    
+    /**
+     * Update the last refresh timestamp and status
+     *
+     * @param string $status The refresh status, e.g. 'success' or 'failed'
+     */
+    private static function set_last_refresh_status($status) {
+        update_option('kcg_preaching_table_last_refresh', current_time('mysql'));
+        update_option('kcg_preaching_table_last_refresh_status', $status);
     }
     
     /**
@@ -197,7 +196,7 @@ class KCG_Elvanto_Fetcher {
      * @return array Services data
      */
     public static function get_services() {
-        return get_option('kcg_elvanto_services', array());
+        return get_transient('kcg_elvanto_services') ?: array();
     }
     
     /**
@@ -206,6 +205,6 @@ class KCG_Elvanto_Fetcher {
      * @return array Preachers keyed by date
      */
     public static function get_preachers() {
-        return get_option('kcg_elvanto_preachers', array());
+        return get_transient('kcg_elvanto_preachers') ?: array();
     }
 }

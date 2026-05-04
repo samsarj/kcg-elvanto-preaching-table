@@ -54,10 +54,12 @@ class KCG_Elvanto_Preaching_Admin {
             $data = KCG_Elvanto_Fetcher::fetch_data();
             
             if (!empty($data['services'])) {
+                update_option('kcg_elvanto_services', $data['services']);
                 set_transient('kcg_elvanto_services', $data['services'], 12 * HOUR_IN_SECONDS);
             }
             
             if (!empty($data['preachers'])) {
+                update_option('kcg_elvanto_preachers', $data['preachers']);
                 set_transient('kcg_elvanto_preachers', $data['preachers'], 12 * HOUR_IN_SECONDS);
             }
             

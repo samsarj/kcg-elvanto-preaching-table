@@ -2,7 +2,7 @@
 /**
  * Plugin Name: KCG Elvanto Preaching Table
  * Description: Displays a table of Sunday services and their dates using the Elvanto API Provider.
- * Version: 1.1.0
+ * Version: 1.0.1
  * Author: Sam Sarjudeen
  * Author URI: https://github.com/samsarj
  * Plugin URI: https://github.com/samsarj/kcg-elvanto-preaching-table

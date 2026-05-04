@@ -101,7 +101,9 @@ class KCG_Elvanto_Fetcher {
             }
         }
         
-        // Store both in transients so the options table remains small.
+        // Persist the latest service and preacher cache.
+        update_option('kcg_elvanto_services', $services);
+        update_option('kcg_elvanto_preachers', $preachers);
         set_transient('kcg_elvanto_services', $services, 12 * HOUR_IN_SECONDS);
         set_transient('kcg_elvanto_preachers', $preachers, 12 * HOUR_IN_SECONDS);
         self::set_last_refresh_status('success');
@@ -196,7 +198,7 @@ class KCG_Elvanto_Fetcher {
      * @return array Services data
      */
     public static function get_services() {
-        return get_transient('kcg_elvanto_services') ?: array();
+        return get_transient('kcg_elvanto_services') ?: get_option('kcg_elvanto_services', array());
     }
     
     /**
@@ -205,6 +207,6 @@ class KCG_Elvanto_Fetcher {
      * @return array Preachers keyed by date
      */
     public static function get_preachers() {
-        return get_transient('kcg_elvanto_preachers') ?: array();
+        return get_transient('kcg_elvanto_preachers') ?: get_option('kcg_elvanto_preachers', array());
     }
 }

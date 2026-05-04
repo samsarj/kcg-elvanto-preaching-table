@@ -45,10 +45,14 @@ class KCG_Elvanto_Preaching_Table {
         
         // Initialize on plugins_loaded hook
         add_action('plugins_loaded', array($this, 'init'), 5);
-        
-        // Plugin activation/deactivation hooks
-        register_activation_hook(__FILE__, array($this, 'activate'));
-        register_deactivation_hook(__FILE__, array($this, 'deactivate'));
+    }
+
+    /**
+     * Register activation and deactivation hooks.
+     */
+    public static function bootstrap() {
+        register_activation_hook(__FILE__, array('KCG_Elvanto_Preaching_Table', 'activate'));
+        register_deactivation_hook(__FILE__, array('KCG_Elvanto_Preaching_Table', 'deactivate'));
     }
     
     public static function get_instance() {
@@ -58,8 +62,13 @@ class KCG_Elvanto_Preaching_Table {
     /**
      * Plugin activation
      */
-    public function activate() {
-        // Schedule daily cron job to fetch data
+    public static function activate() {
+        // Ensure the provider is active before scheduling.
+        if (!class_exists('KCG_Elvanto_API_Registry')) {
+            deactivate_plugins(plugin_basename(__FILE__));
+            wp_die('KCG Elvanto Preaching Table requires the KCG Elvanto API Provider plugin to be installed and active.');
+        }
+
         if (!wp_next_scheduled('kcg_elvanto_fetch_hook')) {
             wp_schedule_event(time(), 'daily', 'kcg_elvanto_fetch_hook');
         }
@@ -68,9 +77,12 @@ class KCG_Elvanto_Preaching_Table {
     /**
      * Plugin deactivation
      */
-    public function deactivate() {
-        // Unschedule cron job
-        wp_clear_scheduled_hook('kcg_elvanto_fetch_hook');
+    public static function deactivate() {
+        // Clean up cron job
+        $timestamp = wp_next_scheduled('kcg_elvanto_fetch_hook');
+        if ($timestamp) {
+            wp_unschedule_event($timestamp, 'kcg_elvanto_fetch_hook');
+        }
     }
     
     /**
@@ -137,5 +149,6 @@ class KCG_Elvanto_Preaching_Table {
     }
 }
 
-// Instantiate the plugin
+// Register activation/deactivation handlers and instantiate the plugin
+KCG_Elvanto_Preaching_Table::bootstrap();
 new KCG_Elvanto_Preaching_Table();
